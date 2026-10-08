@@ -1,6 +1,6 @@
 # inir-sddm-nixos ❄️🎨
 
-Official [iNiR](https://github.com/snowarch/inir) **`ii-pixel` SDDM login theme** packaged for **NixOS**, featuring **automatic Material You dynamic color & wallpaper synchronization**.
+Official [iNiR](https://github.com/snowarch/inir) **`ii-pixel` SDDM login theme** packaged for **NixOS** (v2.33.0), featuring **automatic Material You dynamic color & wallpaper synchronization** powered by **Matugen & Python**.
 
 [![CI](https://github.com/LATAR-web/inir-sddm-nixos/actions/workflows/ci.yml/badge.svg)](https://github.com/LATAR-web/inir-sddm-nixos/actions/workflows/ci.yml)
 [![Automated Upstream Sync](https://github.com/LATAR-web/inir-sddm-nixos/actions/workflows/update-flake.yml/badge.svg)](https://github.com/LATAR-web/inir-sddm-nixos/actions/workflows/update-flake.yml)
@@ -9,10 +9,14 @@ Official [iNiR](https://github.com/snowarch/inir) **`ii-pixel` SDDM login theme*
 
 ---
 
-## ✨ Features
+## ✨ Features (v2.33.0)
 
-- **Pixel & Material Aesthetic**: Clean, modern login screen replicating the iNiR lock screen.
-- **Dynamic Live Sync**: Automatically extracts your active desktop wallpaper (or video wallpaper first frame), user avatar, and Material You / iRiS color palette and syncs them to SDDM.
+- **Pixel & Material Aesthetic**: Clean, modern login screen replicating the iNiR lock screen with Material You dynamic theming.
+- **Enhanced Color Pipeline (Matugen + Python)**:
+  - Automatically reads cached iNiR palettes (`app-palette.json`, `colors.json`, `iris-washi.json`).
+  - **Live Matugen Generation**: If no precomputed palette exists, it directly invokes `matugen image <wallpaper> --json hex` to generate authentic Material You tokens.
+  - **Pure Python Color Fallback**: Features an integrated PIL quantization and chroma-detection engine to guarantee harmonic colors even without cached files.
+- **Dynamic Live Sync**: Extracts active desktop wallpaper (or video wallpaper first frame via `ffmpeg`), user avatar (`~/.face`), and color scheme.
 - **NixOS Pure Declarative Module**: One simple option enables SDDM, the theme, Qt 6 dependencies, and systemd synchronization services.
 - **Wayland Native (Niri Greeter)**: Uses Niri as the SDDM Wayland greeter compositor, preventing black screens on hybrid GPU laptops (NVIDIA + Intel/AMD).
 - **Automated Daily Upstream Sync**: A GitHub Actions workflow automatically updates this flake whenever upstream `snowarch/inir` receives updates.
@@ -90,26 +94,26 @@ sudo nixos-rebuild switch --flake .#
 
 ---
 
-## 🔄 How the Automatic Sync Works
+## 🔄 CLI Tool: `inir-sddm-sync`
 
-1. **State Preservation**: Because the Nix store is read-only, the theme's static QML/JS code is symlinked into `/var/lib/sddm/themes/ii-pixel`, while `theme.conf` and `assets/` are maintained as mutable files owned by the `users` group.
-2. **Path Monitoring**: A systemd user path unit (`inir-sddm-sync.path`) watches:
-   - `~/.local/state/quickshell/user/generated/colors.json`
-   - `~/.local/state/quickshell/user/generated/theme-meta.json`
-   - `~/.config/inir/config.json`
-3. **Trigger**: Whenever iNiR generates new colors or you change wallpaper, the path unit triggers `inir-sddm-sync`, instantly writing the new colors, wallpaper, and avatar to the SDDM theme without requiring root or sudo.
+The package provides a standalone command line tool `inir-sddm-sync` with Matugen and Python integration:
+
+```bash
+# Sync automatically from active iNiR session
+inir-sddm-sync
+
+# Sync with a specific custom wallpaper using live Matugen extraction
+inir-sddm-sync --wallpaper /path/to/wallpaper.png
+
+# Preview without writing files
+inir-sddm-sync --dry-run -v
+```
 
 ---
 
-## 🧪 Manual Sync & Testing
+## 🧪 Testing the Login Screen
 
-To manually trigger a theme synchronization:
-
-```bash
-inir-sddm-sync
-```
-
-To test the login screen in a nested window:
+To test the login screen in a nested window on NixOS:
 
 ```bash
 sddm-greeter --test-mode --theme /var/lib/sddm/themes/ii-pixel

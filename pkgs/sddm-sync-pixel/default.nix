@@ -2,6 +2,7 @@
 , python3
 , makeWrapper
 , ffmpeg
+, matugen
 }:
 
 let
@@ -11,7 +12,7 @@ let
 in
 python3.pkgs.buildPythonApplication {
   pname = "inir-sddm-sync";
-  version = "1.0.0";
+  version = "2.33.0";
   format = "other";
 
   src = ./.;
@@ -21,6 +22,7 @@ python3.pkgs.buildPythonApplication {
   propagatedBuildInputs = [
     pythonEnv
     ffmpeg
+    matugen
   ];
 
   installPhase = ''
@@ -31,13 +33,13 @@ python3.pkgs.buildPythonApplication {
     chmod +x $out/bin/inir-sddm-sync
 
     wrapProgram $out/bin/inir-sddm-sync \
-      --prefix PATH : ${lib.makeBinPath [ ffmpeg pythonEnv ]}
+      --prefix PATH : ${lib.makeBinPath [ ffmpeg matugen pythonEnv ]}
 
     runHook postInstall
   '';
 
   meta = with lib; {
-    description = "Dynamic synchronizer for iNiR's ii-pixel SDDM theme on NixOS";
+    description = "Dynamic Material You synchronizer for iNiR's ii-pixel SDDM theme on NixOS";
     homepage = "https://github.com/LATAR-web/inir-sddm-nixos";
     license = licenses.gpl3Only;
     platforms = platforms.linux;

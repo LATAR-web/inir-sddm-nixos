@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
 """Sync the ii-pixel SDDM theme with iNiR on NixOS: appearance, colors, wallpaper, and avatar.
 
-This script reads the user's active iNiR palette, wallpaper, and avatar, and writes them
-to the mutable SDDM theme directory (defaults to /var/lib/sddm/themes/ii-pixel).
-
-Designed for NixOS with support for CLI flags, environment variables, and automated systemd execution.
+Version: 2.33.0
+Supports:
+- Pre-generated iNiR palettes (app-palette.json, palette.json, colors.json)
+- Live color generation using Matugen (matugen image <path> --json hex)
+- Pure Python Material You / PIL color quantization fallback
+- Video wallpaper frame extraction via ffmpeg
+- Full iRiS and Classic login styles
+- Automatic systemd integration for NixOS
 """
 
 import argparse
+import colorsys
 import json
 import os
 import pwd
@@ -17,6 +22,7 @@ import sys
 import tempfile
 
 THEME_NAME = "ii-pixel"
+VERSION = "2.33.0"
 DEFAULT_THEME_DIRS = [
     "/var/lib/sddm/themes/ii-pixel",
     "/usr/share/sddm/themes/ii-pixel",
@@ -28,8 +34,8 @@ Name=ii-pixel
 Description=iNiR SDDM login screen — Material You dynamic colors
 Type=sddm-theme
 Author=iNiR project
-Version=1.0
-Website=https://github.com/snowarch/iNiR
+Version=2.33.0
+Website=https://github.com/snowarch/inir
 Screenshot=
 MainScript=Main.qml
 ConfigFile=theme.conf
@@ -96,7 +102,7 @@ def dig(data, *keys, default=None):
     return data
 
 
-def read_colors(generated_dir):
+def read_colors_from_json(generated_dir):
     sources = [
         os.path.join(generated_dir, "app-palette.json"),
         os.path.join(generated_dir, "palette.json"),
@@ -108,7 +114,7 @@ def read_colors(generated_dir):
     data = load_json(source) or {}
     dark = data.get("colors", {}).get("dark", {})
     if not dark:
-        if "primary" in data or "on_surface" in data:
+        if "primary" in data or "on_surface" in data or "app_accent" in data:
             dark = data
         else:
             return None
@@ -122,6 +128,110 @@ def read_colors(generated_dir):
         "onSurfaceVariantColor": dark.get("app_subtext") or dark.get("on_surface_variant", "#9399b2"),
         "backgroundColor": dark.get("app_background") or dark.get("background", "#1e1e2e"),
         "errorColor": dark.get("error", "#f38ba8"),
+    }
+
+
+def derive_colors_with_matugen(wallpaper_path, mode="dark"):
+    """Generate Material You palette directly from image using matugen CLI."""
+    if not shutil.which("matugen") or not wallpaper_path or not os.path.isfile(wallpaper_path):
+        return None
+
+    try:
+        proc = subprocess.run(
+            ["matugen", "image", wallpaper_path, "--json", "hex"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        if proc.returncode == 0 and proc.stdout:
+            data = json.loads(proc.stdout)
+            colors = data.get("colors", {}).get(mode, {})
+            if colors:
+                return {
+                    "primaryColor": colors.get("primary", "#cba6f7"),
+                    "onPrimaryColor": colors.get("on_primary", "#1e1e2e"),
+                    "surfaceColor": colors.get("surface", "#1e1e2e"),
+                    "surfaceContainerColor": colors.get("surface_container", "#181825"),
+                    "onSurfaceColor": colors.get("on_surface", "#cdd6f4"),
+                    "onSurfaceVariantColor": colors.get("on_surface_variant", "#9399b2"),
+                    "backgroundColor": colors.get("background", "#1e1e2e"),
+                    "errorColor": colors.get("error", "#f38ba8"),
+                }
+    except Exception:
+        pass
+    return None
+
+
+def derive_colors_with_python_fallback(wallpaper_path, mode="dark"):
+    """Derive harmonious Material palette in pure Python with PIL."""
+    if not wallpaper_path or not os.path.isfile(wallpaper_path):
+        return None
+
+    try:
+        from PIL import Image
+
+        with Image.open(wallpaper_path) as im:
+            # Resize to small thumbnail for fast color analysis
+            thumb = im.convert("RGB").resize((48, 48), Image.Resampling.LANCZOS)
+            # Quantize to 8 colors to find dominant hue
+            quant = thumb.quantize(colors=8, method=Image.Quantize.FASTOCTREE)
+            palette = quant.getpalette()[:24]
+            # Pick highest-chroma color as accent
+            best_rgb = (203, 166, 247)
+            best_sat = -1
+            for i in range(0, len(palette), 3):
+                r, g, b = palette[i], palette[i + 1], palette[i + 2]
+                h, s, v = colorsys.rgb_to_hsv(r / 255.0, g / 255.0, b / 255.0)
+                if 0.15 < v < 0.95 and s > best_sat:
+                    best_sat = s
+                    best_rgb = (r, g, b)
+
+            primary_hex = "#{:02x}{:02x}{:02x}".format(*best_rgb)
+            # Calculate pleasant dark surface tones
+            h, s, _ = colorsys.rgb_to_hsv(best_rgb[0] / 255.0, best_rgb[1] / 255.0, best_rgb[2] / 255.0)
+            surf_r, surf_g, surf_b = [int(c * 255) for c in colorsys.hsv_to_rgb(h, min(s * 0.2, 0.15), 0.12)]
+            surf_cont_r, surf_cont_g, surf_cont_b = [int(c * 255) for c in colorsys.hsv_to_rgb(h, min(s * 0.25, 0.18), 0.16)]
+
+            surface_hex = "#{:02x}{:02x}{:02x}".format(surf_r, surf_g, surf_b)
+            surface_cont_hex = "#{:02x}{:02x}{:02x}".format(surf_cont_r, surf_cont_g, surf_cont_b)
+
+            return {
+                "primaryColor": primary_hex,
+                "onPrimaryColor": "#121318",
+                "surfaceColor": surface_hex,
+                "surfaceContainerColor": surface_cont_hex,
+                "onSurfaceColor": "#e2e2e9",
+                "onSurfaceVariantColor": "#c4c6d0",
+                "backgroundColor": surface_hex,
+                "errorColor": "#ffb4ab",
+            }
+    except Exception:
+        return None
+
+
+def get_theme_colors(generated_dir, wallpaper_path, mode="dark"):
+    """Resolve theme colors: cached iNiR files -> Matugen -> Python fallback -> default."""
+    colors = read_colors_from_json(generated_dir)
+    if colors:
+        return colors
+
+    colors = derive_colors_with_matugen(wallpaper_path, mode)
+    if colors:
+        return colors
+
+    colors = derive_colors_with_python_fallback(wallpaper_path, mode)
+    if colors:
+        return colors
+
+    return {
+        "primaryColor": "#cba6f7",
+        "onPrimaryColor": "#1e1e2e",
+        "surfaceColor": "#1e1e2e",
+        "surfaceContainerColor": "#181825",
+        "onSurfaceColor": "#cdd6f4",
+        "onSurfaceVariantColor": "#9399b2",
+        "backgroundColor": "#1e1e2e",
+        "errorColor": "#f38ba8",
     }
 
 
@@ -328,7 +438,10 @@ def picture_lift(path):
         return 0
 
 
-def read_wallpaper(config, home_dir, generated_dir):
+def read_wallpaper(config, home_dir, generated_dir, cli_wall=None):
+    if cli_wall and os.path.isfile(cli_wall):
+        return cli_wall
+
     # 1. From config.json
     background = config.get("background", {}) or {}
     waffle_background = dig(config, "waffles", "background", default={}) or {}
@@ -352,9 +465,11 @@ def read_wallpaper(config, home_dir, generated_dir):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Synchronize iNiR colors and wallpaper to SDDM theme.")
+    parser = argparse.ArgumentParser(description=f"Synchronize iNiR colors and wallpaper to SDDM theme v{VERSION}.")
     parser.add_argument("--theme-dir", default=None, help="Target SDDM theme directory (e.g. /var/lib/sddm/themes/ii-pixel)")
+    parser.add_argument("--wallpaper", default=None, help="Specific wallpaper path to sync")
     parser.add_argument("--user", default=None, help="Specific user to read configs from")
+    parser.add_argument("--mode", default="dark", choices=["dark", "light"], help="Color scheme mode (default: dark)")
     parser.add_argument("--dry-run", action="store_true", help="Perform checks without writing files")
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose output")
     args = parser.parse_args()
@@ -368,11 +483,13 @@ def main():
     config_json_path = os.path.join(home_dir, ".config", "inir", "config.json")
 
     if args.verbose:
+        print(f"[sddm-sync] iNiR SDDM Sync v{VERSION}")
         print(f"[sddm-sync] User: {username} ({home_dir})")
         print(f"[sddm-sync] Theme directory: {theme_dir}")
 
     config = load_json(config_json_path) or {}
-    colors = read_colors(generated_dir)
+    wallpaper = read_wallpaper(config, home_dir, generated_dir, args.wallpaper)
+    colors = get_theme_colors(generated_dir, wallpaper, args.mode)
     appearance = read_appearance(config)
 
     values = {"appearance": appearance}
@@ -390,7 +507,6 @@ def main():
     if iris["irisSceneSource"] == "custom" and update_picture(own, "lock-picture.png", assets_dir, args.dry_run):
         values["irisPicture"] = "assets/lock-picture.png"
 
-    wallpaper = read_wallpaper(config, home_dir, generated_dir)
     if wallpaper:
         update_picture(wallpaper, "background.png", assets_dir, args.dry_run)
     elif args.verbose:
@@ -404,7 +520,7 @@ def main():
     update_avatar(home_dir, username, assets_dir, args.dry_run)
 
     if success:
-        print(f"[sddm-sync] Theme successfully synced ({appearance}) -> {theme_dir}")
+        print(f"[sddm-sync] Theme successfully synced v{VERSION} ({appearance}) -> {theme_dir}")
     else:
         print(f"[sddm-sync] Sync completed with warnings -> {theme_dir}", file=sys.stderr)
 

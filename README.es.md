@@ -1,6 +1,6 @@
 # inir-sddm-nixos ❄️🎨
 
-Tema de inicio de sesión **SDDM `ii-pixel`** oficial de [iNiR](https://github.com/snowarch/inir) empaquetado para **NixOS**, con **sincronización automática de fondos de pantalla y colores dinámicos Material You**.
+Tema de inicio de sesión **SDDM `ii-pixel`** oficial de [iNiR](https://github.com/snowarch/inir) empaquetado para **NixOS** (v2.33.0), con **sincronización automática de fondos de pantalla y colores dinámicos Material You** impulsada por **Matugen y Python**.
 
 [![CI](https://github.com/LATAR-web/inir-sddm-nixos/actions/workflows/ci.yml/badge.svg)](https://github.com/LATAR-web/inir-sddm-nixos/actions/workflows/ci.yml)
 [![Automated Upstream Sync](https://github.com/LATAR-web/inir-sddm-nixos/actions/workflows/update-flake.yml/badge.svg)](https://github.com/LATAR-web/inir-sddm-nixos/actions/workflows/update-flake.yml)
@@ -9,11 +9,15 @@ Tema de inicio de sesión **SDDM `ii-pixel`** oficial de [iNiR](https://github.c
 
 ---
 
-## ✨ Características
+## ✨ Características (v2.33.0)
 
-- **Estética Pixel y Material You**: Pantalla de login limpia y moderna idéntica a la pantalla de bloqueo de iNiR.
-- **Sincronización en Vivo**: Extrae automáticamente el fondo de escritorio activo (o el primer fotograma de fondos de vídeo), el avatar del usuario y la paleta de colores activa de Material You / iRiS y los sincroniza con SDDM.
-- **Módulo Declarativo Puro de NixOS**: Una única opción habilita SDDM, el tema, dependencias de Qt 6 y los servicios de sincronización de systemd.
+- **Estética Pixel y Material You**: Pantalla de login limpia y moderna idéntica a la pantalla de bloqueo de iNiR con colores dinámicos.
+- **Motor de Color Mejorado (Matugen + Python)**:
+  - Lee automáticamente las paletas calculadas de iNiR (`app-palette.json`, `colors.json`, `iris-washi.json`).
+  - **Generación en Vivo con Matugen**: Si no existe una paleta previa, ejecuta directamente `matugen image <fondo> --json hex` para extraer tokens auténticos de Material You.
+  - **Respaldo Puro en Python**: Integra un motor de análisis de croma y cuantización con PIL para garantizar armonía de colores incluso en instalaciones limpias.
+- **Sincronización en Vivo**: Extrae el fondo activo (o primer fotograma de fondos animados con `ffmpeg`), el avatar (`~/.face`) y el esquema de color.
+- **Módulo Declarativo de NixOS**: Una única opción habilita SDDM, el tema, dependencias de Qt 6 y los servicios de sincronización de systemd.
 - **Nativo para Wayland (Greeter con Niri)**: Utiliza Niri como compositor del greeter de SDDM en Wayland, eliminando pantallas negras en laptops con gráficos híbridos (NVIDIA + Intel/AMD).
 - **Actualizaciones Automáticas Diarias desde Upstream**: Un flujo de trabajo de GitHub Actions actualiza automáticamente este flake cuando el repositorio oficial `snowarch/inir` recibe cambios.
 
@@ -90,26 +94,26 @@ sudo nixos-rebuild switch --flake .#
 
 ---
 
-## 🔄 Cómo Funciona la Sincronización Automática
+## 🔄 Herramienta CLI: `inir-sddm-sync`
 
-1. **Persistencia y Permisos**: Dado que el Nix store es de sólo lectura, los archivos inmutables QML/JS del tema se enlazan simbólicamente en `/var/lib/sddm/themes/ii-pixel`, mientras que `theme.conf` y `assets/` se mantienen con permisos de escritura para el grupo `users`.
-2. **Vigilancia de Archivos (systemd path)**: Una unidad de usuario `inir-sddm-sync.path` vigila los archivos generados por Quickshell/iNiR:
-   - `~/.local/state/quickshell/user/generated/colors.json`
-   - `~/.local/state/quickshell/user/generated/theme-meta.json`
-   - `~/.config/inir/config.json`
-3. **Disparo**: Al cambiar de fondo o tema en iNiR, systemd invoca `inir-sddm-sync` en segundo plano, escribiendo inmediatamente los nuevos colores, fondo y avatar sin requerir privilegios de `sudo`.
+El paquete incluye el binario ejecutable `inir-sddm-sync` con soporte para Matugen y Python:
+
+```bash
+# Sincronización automática desde la sesión activa de iNiR
+inir-sddm-sync
+
+# Sincronizar un fondo específico extrayendo colores con Matugen
+inir-sddm-sync --wallpaper /ruta/a/mi-fondo.png
+
+# Simulación (sin escribir archivos)
+inir-sddm-sync --dry-run -v
+```
 
 ---
 
-## 🧪 Sincronización Manual y Pruebas
+## 🧪 Pruebas de la Pantalla de Inicio de Sesión
 
-Para forzar manualmente una sincronización del tema:
-
-```bash
-inir-sddm-sync
-```
-
-Para previsualizar la pantalla de inicio de sesión en una ventana de prueba:
+Para previsualizar la pantalla de inicio de sesión en una ventana de prueba en NixOS:
 
 ```bash
 sddm-greeter --test-mode --theme /var/lib/sddm/themes/ii-pixel
