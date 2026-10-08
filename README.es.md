@@ -1,4 +1,4 @@
-# SDDM de iNiR Shell ❄️🎨
+# SDDM de iNiR Shell ❄️
 
 SDDM de iNiR Shell para NixOS.
 
@@ -9,7 +9,7 @@ SDDM de iNiR Shell para NixOS.
 
 ---
 
-## ✨ Características
+##  Características
 
 - **SDDM Oficial de iNiR Shell**: Tema `ii-pixel` diseñado específicamente para complementar el entorno iNiR.
 - **Sincronización Automática en NixOS**: Sincroniza en tiempo real el fondo de pantalla (imágenes y vídeos), el avatar del usuario y los colores dinámicos de Material You.
@@ -19,7 +19,7 @@ SDDM de iNiR Shell para NixOS.
 
 ---
 
-## 🚀 Instalación en NixOS
+##  Instalación en NixOS
 
 ### 1. Añadir el input en `flake.nix`
 
@@ -69,7 +69,7 @@ sudo nixos-rebuild switch --flake .#
 
 ---
 
-## 🔄 Comandos
+##  Comandos
 
 ```bash
 # Sincronizar el tema manualmente
