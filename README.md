@@ -1,4 +1,4 @@
-# iNiR Shell SDDM ❄️
+# iNiR Shell SDDM
 
 SDDM for iNiR Shell on NixOS.
 

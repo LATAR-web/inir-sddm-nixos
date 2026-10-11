@@ -102,7 +102,24 @@ def dig(data, *keys, default=None):
     return data
 
 
-def read_colors_from_json(generated_dir):
+def read_colors_from_json(generated_dir, mode="dark"):
+    # 1. Check specialized surface colors first if in light mode
+    if mode == "light":
+        iris_surface_path = os.path.join(generated_dir, "iris-surface.json")
+        surface_data = load_json(iris_surface_path) or {}
+        roles = surface_data.get("roles", {})
+        if roles and "primary" in roles and "surface" in roles:
+            return {
+                "primaryColor": roles.get("primary", "#357498"),
+                "onPrimaryColor": roles.get("on_primary", "#ffffff"),
+                "surfaceColor": roles.get("surface", "#ffffff"),
+                "surfaceContainerColor": roles.get("surface_container", "#f6f1ea"),
+                "onSurfaceColor": roles.get("on_surface", "#1e1d1b"),
+                "onSurfaceVariantColor": roles.get("on_surface_variant", "#615a4f"),
+                "backgroundColor": roles.get("background", "#ffffff"),
+                "errorColor": roles.get("error", "#a9564e"),
+            }
+
     sources = [
         os.path.join(generated_dir, "app-palette.json"),
         os.path.join(generated_dir, "palette.json"),
@@ -112,22 +129,27 @@ def read_colors_from_json(generated_dir):
     if source is None:
         return None
     data = load_json(source) or {}
-    dark = data.get("colors", {}).get("dark", {})
-    if not dark:
+    
+    # Check if data contains mode-specific section (e.g. data["colors"]["dark"] or data["colors"]["light"])
+    palette_data = data.get("colors", {}).get(mode, {})
+    if not palette_data and mode == "dark":
+        palette_data = data.get("colors", {}).get("dark", {})
+
+    if not palette_data:
         if "primary" in data or "on_surface" in data or "app_accent" in data:
-            dark = data
+            palette_data = data
         else:
             return None
 
     return {
-        "primaryColor": dark.get("app_accent") or dark.get("primary", "#cba6f7"),
-        "onPrimaryColor": dark.get("app_on_accent") or dark.get("on_primary", "#1e1e2e"),
-        "surfaceColor": dark.get("app_background") or dark.get("surface", "#1e1e2e"),
-        "surfaceContainerColor": dark.get("app_surface") or dark.get("surface_container", "#181825"),
-        "onSurfaceColor": dark.get("app_foreground") or dark.get("on_surface", "#cdd6f4"),
-        "onSurfaceVariantColor": dark.get("app_subtext") or dark.get("on_surface_variant", "#9399b2"),
-        "backgroundColor": dark.get("app_background") or dark.get("background", "#1e1e2e"),
-        "errorColor": dark.get("error", "#f38ba8"),
+        "primaryColor": palette_data.get("app_accent") or palette_data.get("primary", "#cba6f7"),
+        "onPrimaryColor": palette_data.get("app_on_accent") or palette_data.get("on_primary", "#1e1e2e"),
+        "surfaceColor": palette_data.get("app_background") or palette_data.get("surface", "#1e1e2e"),
+        "surfaceContainerColor": palette_data.get("app_surface") or palette_data.get("surface_container", "#181825"),
+        "onSurfaceColor": palette_data.get("app_foreground") or palette_data.get("on_surface", "#cdd6f4"),
+        "onSurfaceVariantColor": palette_data.get("app_subtext") or palette_data.get("on_surface_variant", "#9399b2"),
+        "backgroundColor": palette_data.get("app_background") or palette_data.get("background", "#1e1e2e"),
+        "errorColor": palette_data.get("error", "#f38ba8"),
     }
 
 
@@ -187,31 +209,43 @@ def derive_colors_with_python_fallback(wallpaper_path, mode="dark"):
                     best_rgb = (r, g, b)
 
             primary_hex = "#{:02x}{:02x}{:02x}".format(*best_rgb)
-            # Calculate pleasant dark surface tones
             h, s, _ = colorsys.rgb_to_hsv(best_rgb[0] / 255.0, best_rgb[1] / 255.0, best_rgb[2] / 255.0)
-            surf_r, surf_g, surf_b = [int(c * 255) for c in colorsys.hsv_to_rgb(h, min(s * 0.2, 0.15), 0.12)]
-            surf_cont_r, surf_cont_g, surf_cont_b = [int(c * 255) for c in colorsys.hsv_to_rgb(h, min(s * 0.25, 0.18), 0.16)]
 
-            surface_hex = "#{:02x}{:02x}{:02x}".format(surf_r, surf_g, surf_b)
-            surface_cont_hex = "#{:02x}{:02x}{:02x}".format(surf_cont_r, surf_cont_g, surf_cont_b)
-
-            return {
-                "primaryColor": primary_hex,
-                "onPrimaryColor": "#121318",
-                "surfaceColor": surface_hex,
-                "surfaceContainerColor": surface_cont_hex,
-                "onSurfaceColor": "#e2e2e9",
-                "onSurfaceVariantColor": "#c4c6d0",
-                "backgroundColor": surface_hex,
-                "errorColor": "#ffb4ab",
-            }
+            if mode == "light":
+                surf_r, surf_g, surf_b = [int(c * 255) for c in colorsys.hsv_to_rgb(h, min(s * 0.05, 0.04), 0.98)]
+                surf_cont_r, surf_cont_g, surf_cont_b = [int(c * 255) for c in colorsys.hsv_to_rgb(h, min(s * 0.1, 0.08), 0.94)]
+                return {
+                    "primaryColor": primary_hex,
+                    "onPrimaryColor": "#ffffff",
+                    "surfaceColor": "#{:02x}{:02x}{:02x}".format(surf_r, surf_g, surf_b),
+                    "surfaceContainerColor": "#{:02x}{:02x}{:02x}".format(surf_cont_r, surf_cont_g, surf_cont_b),
+                    "onSurfaceColor": "#1e1d1b",
+                    "onSurfaceVariantColor": "#565450",
+                    "backgroundColor": "#{:02x}{:02x}{:02x}".format(surf_r, surf_g, surf_b),
+                    "errorColor": "#ba1a1a",
+                }
+            else:
+                surf_r, surf_g, surf_b = [int(c * 255) for c in colorsys.hsv_to_rgb(h, min(s * 0.2, 0.15), 0.12)]
+                surf_cont_r, surf_cont_g, surf_cont_b = [int(c * 255) for c in colorsys.hsv_to_rgb(h, min(s * 0.25, 0.18), 0.16)]
+                surface_hex = "#{:02x}{:02x}{:02x}".format(surf_r, surf_g, surf_b)
+                surface_cont_hex = "#{:02x}{:02x}{:02x}".format(surf_cont_r, surf_cont_g, surf_cont_b)
+                return {
+                    "primaryColor": primary_hex,
+                    "onPrimaryColor": "#121318",
+                    "surfaceColor": surface_hex,
+                    "surfaceContainerColor": surface_cont_hex,
+                    "onSurfaceColor": "#e2e2e9",
+                    "onSurfaceVariantColor": "#c4c6d0",
+                    "backgroundColor": surface_hex,
+                    "errorColor": "#ffb4ab",
+                }
     except Exception:
         return None
 
 
 def get_theme_colors(generated_dir, wallpaper_path, mode="dark"):
     """Resolve theme colors: cached iNiR files -> Matugen -> Python fallback -> default."""
-    colors = read_colors_from_json(generated_dir)
+    colors = read_colors_from_json(generated_dir, mode)
     if colors:
         return colors
 
@@ -223,6 +257,17 @@ def get_theme_colors(generated_dir, wallpaper_path, mode="dark"):
     if colors:
         return colors
 
+    if mode == "light":
+        return {
+            "primaryColor": "#357498",
+            "onPrimaryColor": "#ffffff",
+            "surfaceColor": "#ffffff",
+            "surfaceContainerColor": "#f6f1ea",
+            "onSurfaceColor": "#1e1d1b",
+            "onSurfaceVariantColor": "#615a4f",
+            "backgroundColor": "#ffffff",
+            "errorColor": "#a9564e",
+        }
     return {
         "primaryColor": "#cba6f7",
         "onPrimaryColor": "#1e1e2e",
@@ -242,7 +287,7 @@ def read_appearance(config):
     return "iris" if config.get("panelFamily") == "iris" else "classic"
 
 
-def read_iris(config, palette, generated_dir):
+def read_iris(config, palette, generated_dir, mode="dark"):
     lock = dig(config, "iris", "lock", default={}) or {}
     appearance = dig(config, "iris", "appearance", default={}) or {}
     scene = lock.get("scene") or {}
@@ -250,11 +295,13 @@ def read_iris(config, palette, generated_dir):
     session = dig(lock, "blocks", "session", default={}) or {}
 
     washi_path = os.path.join(generated_dir, "iris-washi.json")
-    washi = dig(load_json(washi_path) or {}, "schemes", "dark", default={}) or {}
+    washi = dig(load_json(washi_path) or {}, "schemes", mode, default={}) or {}
+    if not washi and mode != "dark":
+        washi = dig(load_json(washi_path) or {}, "schemes", "dark", default={}) or {}
     accent = washi.get("accent") or (palette or {}).get("primaryColor") or "#a8c7fa"
     highlight = washi.get("highlight") or "#ff9f0a"
     material = "theme" if appearance.get("followTheme", True) else str(dig(appearance, "theme", "surface", default="black"))
-    surface = dig(washi, "materials", material) or (palette or {}).get("backgroundColor") or "#000000"
+    surface = dig(washi, "materials", material) or (palette or {}).get("backgroundColor") or ("#ffffff" if mode == "light" else "#000000")
 
     main_font = appearance.get("fontFamily") or "Inter"
     clock_font = {
@@ -461,6 +508,17 @@ def read_wallpaper(config, home_dir, generated_dir, cli_wall=None):
     if meta_path and os.path.isfile(meta_path):
         return meta_path
 
+    # 3. From wallpaper/path.txt cache
+    wall_txt = os.path.join(generated_dir, "wallpaper", "path.txt")
+    if os.path.isfile(wall_txt):
+        try:
+            with open(wall_txt, "r", encoding="utf-8") as f:
+                cached_path = f.read().strip()
+                if cached_path and os.path.isfile(cached_path):
+                    return cached_path
+        except OSError:
+            pass
+
     return None
 
 
@@ -469,7 +527,7 @@ def main():
     parser.add_argument("--theme-dir", default=None, help="Target SDDM theme directory (e.g. /var/lib/sddm/themes/ii-pixel)")
     parser.add_argument("--wallpaper", default=None, help="Specific wallpaper path to sync")
     parser.add_argument("--user", default=None, help="Specific user to read configs from")
-    parser.add_argument("--mode", default="dark", choices=["dark", "light"], help="Color scheme mode (default: dark)")
+    parser.add_argument("--mode", default=None, choices=["dark", "light"], help="Color scheme mode (default: auto-detected or dark)")
     parser.add_argument("--dry-run", action="store_true", help="Perform checks without writing files")
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose output")
     args = parser.parse_args()
@@ -481,15 +539,32 @@ def main():
     home_dir, username = resolve_home(args.user)
     generated_dir = os.path.join(home_dir, ".local", "state", "quickshell", "user", "generated")
     config_json_path = os.path.join(home_dir, ".config", "inir", "config.json")
+    if not os.path.isfile(config_json_path):
+        legacy_config = os.path.join(home_dir, ".config", "illogical-impulse", "config.json")
+        if os.path.isfile(legacy_config):
+            config_json_path = legacy_config
+
+    config = load_json(config_json_path) or {}
+    meta = load_json(os.path.join(generated_dir, "theme-meta.json")) or {}
+
+    # Auto-detect mode if not explicitly specified via CLI
+    if args.mode:
+        active_mode = args.mode
+    elif meta.get("mode") in ("dark", "light"):
+        active_mode = meta.get("mode")
+    elif dig(config, "appearance", "mode") in ("dark", "light"):
+        active_mode = dig(config, "appearance", "mode")
+    else:
+        active_mode = "dark"
 
     if args.verbose:
         print(f"[sddm-sync] iNiR SDDM Sync v{VERSION}")
         print(f"[sddm-sync] User: {username} ({home_dir})")
+        print(f"[sddm-sync] Mode: {active_mode}")
         print(f"[sddm-sync] Theme directory: {theme_dir}")
 
-    config = load_json(config_json_path) or {}
     wallpaper = read_wallpaper(config, home_dir, generated_dir, args.wallpaper)
-    colors = get_theme_colors(generated_dir, wallpaper, args.mode)
+    colors = get_theme_colors(generated_dir, wallpaper, active_mode)
     appearance = read_appearance(config)
 
     values = {"appearance": appearance}
@@ -497,7 +572,7 @@ def main():
         values.update(colors)
     values["materialShapeChars"] = "true" if dig(config, "lock", "materialShapeChars", default=False) else "false"
 
-    iris = read_iris(config, colors, generated_dir)
+    iris = read_iris(config, colors, generated_dir, active_mode)
     values.update(iris)
 
     own = str(dig(config, "iris", "lock", "scene", "path", default="") or "")

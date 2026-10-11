@@ -130,7 +130,11 @@ in
           PathModified = [
             "%h/.local/state/quickshell/user/generated/colors.json"
             "%h/.local/state/quickshell/user/generated/theme-meta.json"
+            "%h/.local/state/quickshell/user/generated/iris-washi.json"
+            "%h/.local/state/quickshell/user/generated/iris-surface.json"
+            "%h/.local/state/quickshell/user/generated/wallpaper/path.txt"
             "%h/.config/inir/config.json"
+            "%h/.config/illogical-impulse/config.json"
           ];
           Unit = "inir-sddm-sync.service";
         };

@@ -34,6 +34,11 @@ stdenvNoCC.mkDerivation {
     mkdir -p "$target/assets"
     if [ -f assets/images/default_wallpaper.png ]; then
       cp assets/images/default_wallpaper.png "$target/assets/background.png"
+    elif [ -d assets/wallpapers ]; then
+      first_wall=$(find assets/wallpapers -maxdepth 1 -type f \( -name "*.png" -o -name "*.jpg" \) | head -n 1)
+      if [ -n "$first_wall" ]; then
+        cp "$first_wall" "$target/assets/background.png"
+      fi
     fi
 
     # Include Niri SDDM greeter compositor configuration
