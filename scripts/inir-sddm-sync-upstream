@@ -1,0 +1,132 @@
+#!/usr/bin/env bash
+#
+# inir-sddm-sync-upstream: Check and synchronize upstream iNiR for ii-pixel SDDM
+#
+set -Eeuo pipefail
+
+BOLD="\033[1m"
+GREEN="\033[32m"
+BLUE="\033[34m"
+YELLOW="\033[33m"
+RED="\033[31m"
+CYAN="\033[36m"
+RESET="\033[0m"
+
+UPSTREAM_URL="${INIR_UPSTREAM_URL:-https://github.com/snowarch/iNiR.git}"
+
+info()  { echo -e "${CYAN}ℹ️  ${RESET}$*"; }
+ok()    { echo -e "${GREEN}✅ ${RESET}$*"; }
+warn()  { echo -e "${YELLOW}⚠️  ${RESET}$*"; }
+error() { echo -e "${RED}❌ ${RESET}$*" >&2; }
+head()  { echo -e "\n${BOLD}${BLUE}── $* ──${RESET}\n"; }
+
+find_flake_dir() {
+    if [[ -f "flake.nix" && -f "flake.lock" ]]; then
+        pwd
+        return 0
+    fi
+    for candidate in \
+        "$HOME/projectos/inir-sddm-nixos" \
+        "$HOME/projects/inir-sddm-nixos" \
+        "/etc/nixos"; do
+        if [[ -f "$candidate/flake.nix" && -f "$candidate/flake.lock" ]]; then
+            echo "$candidate"
+            return 0
+        fi
+    done
+    echo ""
+}
+
+get_locked_inir_rev() {
+    local flake_dir="$1"
+    if [[ -f "$flake_dir/flake.lock" ]] && command -v jq >/dev/null 2>&1; then
+        jq -r '.nodes.inir.locked.rev // empty' "$flake_dir/flake.lock" 2>/dev/null || true
+    fi
+}
+
+get_remote_inir_rev() {
+    if command -v git >/dev/null 2>&1; then
+        timeout 15 git ls-remote "$UPSTREAM_URL" HEAD 2>/dev/null | awk '{print $1}' || true
+    fi
+}
+
+status() {
+    head "iNiR SDDM Upstream Status"
+    local flake_dir
+    flake_dir="$(find_flake_dir)"
+    if [[ -n "$flake_dir" ]]; then
+        ok "Flake directory: ${BOLD}$flake_dir${RESET}"
+        local locked_rev
+        locked_rev="$(get_locked_inir_rev "$flake_dir")"
+        if [[ -n "$locked_rev" ]]; then
+            info "Locked iNiR commit: ${BOLD}${locked_rev:0:8}${RESET} (${locked_rev})"
+        fi
+        echo -n "  Checking remote upstream ($UPSTREAM_URL)... "
+        local remote_rev
+        remote_rev="$(get_remote_inir_rev)"
+        if [[ -n "$remote_rev" ]]; then
+            echo -e "${BOLD}${remote_rev:0:8}${RESET}"
+            if [[ "$locked_rev" == "$remote_rev" ]]; then
+                ok "SDDM theme is ${BOLD}up-to-date${RESET} with upstream iNiR"
+            else
+                warn "New upstream commits available! (${BOLD}${locked_rev:0:8}${RESET} -> ${BOLD}${remote_rev:0:8}${RESET})"
+                info "Run ${BOLD}$0 --update${RESET} to pull latest changes into flake.lock"
+            fi
+        else
+            warn "Could not reach remote upstream"
+        fi
+    else
+        warn "No flake.nix found"
+    fi
+}
+
+update_upstream() {
+    head "Updating Upstream iNiR for SDDM"
+    local flake_dir
+    flake_dir="$(find_flake_dir)"
+    if [[ -z "$flake_dir" ]]; then
+        error "No flake directory found."
+        exit 1
+    fi
+    info "Working directory: $flake_dir"
+    local prev_rev
+    prev_rev="$(get_locked_inir_rev "$flake_dir")"
+    info "Current locked revision: ${prev_rev:0:8}"
+
+    info "Running: nix flake update inir..."
+    if (cd "$flake_dir" && nix flake update inir --extra-experimental-features 'nix-command flakes'); then
+        local new_rev
+        new_rev="$(get_locked_inir_rev "$flake_dir")"
+        if [[ "$prev_rev" != "$new_rev" ]]; then
+            ok "Upstream inir successfully updated: ${BOLD}${prev_rev:0:8} -> ${new_rev:0:8}${RESET}"
+        else
+            ok "inir is already up to date at ${BOLD}${new_rev:0:8}${RESET}"
+        fi
+
+        info "Validating flake evaluation and builds..."
+        if (cd "$flake_dir" && nix flake check --extra-experimental-features 'nix-command flakes' && nix build .#ii-pixel-sddm .#inir-sddm-sync --no-link --extra-experimental-features 'nix-command flakes'); then
+            ok "SDDM packages built and verified successfully!"
+        else
+            error "Build verification failed after update!"
+            exit 1
+        fi
+    else
+        error "Failed to update inir flake input."
+        exit 1
+    fi
+}
+
+case "${1:-}" in
+    -u|--update)
+        update_upstream
+        ;;
+    -h|--help)
+        echo "Usage: inir-sddm-sync-upstream [OPTIONS]"
+        echo "Options:"
+        echo "  -u, --update    Update locked inir input and test builds"
+        echo "  -h, --help      Show this help message"
+        ;;
+    *)
+        status
+        ;;
+esac

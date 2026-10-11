@@ -3,23 +3,23 @@
 SDDM for iNiR Shell on NixOS.
 
 [![CI](https://github.com/LATAR-web/inir-sddm-nixos/actions/workflows/ci.yml/badge.svg)](https://github.com/LATAR-web/inir-sddm-nixos/actions/workflows/ci.yml)
-[![Automated Upstream Sync](https://github.com/LATAR-web/inir-sddm-nixos/actions/workflows/update-flake.yml/badge.svg)](https://github.com/LATAR-web/inir-sddm-nixos/actions/workflows/update-flake.yml)
+[![Auto-Update Flake](https://github.com/LATAR-web/inir-sddm-nixos/actions/workflows/update-flake.yml/badge.svg)](https://github.com/LATAR-web/inir-sddm-nixos/actions/workflows/update-flake.yml)
 
 **English** | [Español](README.es.md)
 
 ---
 
-##  Features
+## Features
 
 - **Official iNiR Shell SDDM**: The `ii-pixel` theme designed specifically for the iNiR desktop environment.
 - **Automatic Live Sync in NixOS**: Real-time sync for wallpapers (images and videos), user avatars, and dynamic Material You colors.
 - **Color Engine with Matugen & Python**: Extracts colors directly with Matugen and pure Python fallback.
 - **Wayland Native with Niri Greeter**: Uses Niri as the greeter compositor to eliminate GPU issues on hybrid systems.
-- **Automated Upstream Updates**: Stays continuously up to date with upstream iNiR.
+- **Automated Upstream Updates**: Continuously synchronizes every 2 hours with upstream iNiR.
 
 ---
 
-##  Installation on NixOS
+## Installation on NixOS
 
 ### 1. Add Flake Input
 
@@ -69,7 +69,7 @@ sudo nixos-rebuild switch --flake .#
 
 ---
 
-##  Commands
+## Commands
 
 ```bash
 # Manually sync the theme
@@ -77,6 +77,9 @@ inir-sddm-sync
 
 # Sync with a specific wallpaper using Matugen
 inir-sddm-sync --wallpaper /path/to/wallpaper.png
+
+# Check upstream iNiR status and update flake
+./scripts/inir-sddm-sync-upstream --update
 
 # Test the login screen in a nested window
 sddm-greeter --test-mode --theme /var/lib/sddm/themes/ii-pixel

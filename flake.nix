@@ -29,6 +29,24 @@
           inir-sddm-sync = pkgs.callPackage ./pkgs/sddm-sync-pixel { };
         });
 
+      apps = forAllSystems (system: {
+        default = {
+          type = "app";
+          program = "${self.packages.${system}.inir-sddm-sync}/bin/inir-sddm-sync";
+          meta.description = "Live Material You and wallpaper synchronizer for ii-pixel SDDM";
+        };
+        inir-sddm-sync = {
+          type = "app";
+          program = "${self.packages.${system}.inir-sddm-sync}/bin/inir-sddm-sync";
+          meta.description = "Live Material You and wallpaper synchronizer for ii-pixel SDDM";
+        };
+      });
+
+      checks = forAllSystems (system: {
+        ii-pixel-sddm = self.packages.${system}.ii-pixel-sddm;
+        inir-sddm-sync = self.packages.${system}.inir-sddm-sync;
+      });
+
       nixosModules = rec {
         default = inir-sddm;
 

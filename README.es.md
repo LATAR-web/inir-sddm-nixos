@@ -1,27 +1,24 @@
-# SDDM de iNiR Shell
+# iNiR Shell SDDM
 
-SDDM de iNiR Shell para NixOS.
-
-[![CI](https://github.com/LATAR-web/inir-sddm-nixos/actions/workflows/ci.yml/badge.svg)](https://github.com/LATAR-web/inir-sddm-nixos/actions/workflows/ci.yml)
-[![Automated Upstream Sync](https://github.com/LATAR-web/inir-sddm-nixos/actions/workflows/update-flake.yml/badge.svg)](https://github.com/LATAR-web/inir-sddm-nixos/actions/workflows/update-flake.yml)
+SDDM para iNiR Shell en NixOS.
 
 [English](README.md) | **Español**
 
 ---
 
-##  Características
+## Características
 
-- **SDDM Oficial de iNiR Shell**: Tema `ii-pixel` diseñado específicamente para complementar el entorno iNiR.
-- **Sincronización Automática en NixOS**: Sincroniza en tiempo real el fondo de pantalla (imágenes y vídeos), el avatar del usuario y los colores dinámicos de Material You.
-- **Motor de Color con Matugen y Python**: Extrae los colores directamente de Matugen y cuenta con respaldo automático en Python.
-- **Greeter en Wayland con Niri**: Utiliza Niri como compositor del greeter para evitar problemas con tarjetas gráficas híbridas (NVIDIA / Intel / AMD).
-- **Actualizaciones Automáticas**: Se sincroniza automáticamente con el upstream de iNiR.
+- **iNiR Shell SDDM Oficial**: El tema `ii-pixel` diseñado específicamente para el entorno iNiR.
+- **Sincronización en Vivo en NixOS**: Sincronización en tiempo real de fondos (imágenes y videos), avatares de usuario y colores dinámicos Material You.
+- **Motor de Color con Matugen y Python**: Extrae colores directamente con Matugen y soporte nativo en Python.
+- **Wayland Nativo con Greeter Niri**: Emplea Niri como compositor de inicio para evitar fallos de GPU en equipos híbridos.
+- **Actualización Automática**: Se mantiene sincronizado continuamente cada 2 horas con iNiR upstream.
 
 ---
 
-##  Instalación en NixOS
+## Instalación en NixOS
 
-### 1. Añadir el input en `flake.nix`
+### 1. Añadir el Flake
 
 ```nix
 {
@@ -35,7 +32,7 @@ SDDM de iNiR Shell para NixOS.
   };
 
   outputs = { self, nixpkgs, inir-sddm, ... }: {
-    nixosConfigurations.mi-pc = nixpkgs.lib.nixosSystem {
+    nixosConfigurations.mi-equipo = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       modules = [
         inir-sddm.nixosModules.default
@@ -61,7 +58,7 @@ SDDM de iNiR Shell para NixOS.
 }
 ```
 
-### 3. Reconstruir el sistema
+### 3. Reconstruir el Sistema
 
 ```bash
 sudo nixos-rebuild switch --flake .#
@@ -69,15 +66,18 @@ sudo nixos-rebuild switch --flake .#
 
 ---
 
-##  Comandos
+## Comandos
 
 ```bash
-# Sincronizar el tema manualmente
+# Sincronizar manualmente el tema
 inir-sddm-sync
 
-# Sincronizar con un fondo de pantalla específico usando Matugen
-inir-sddm-sync --wallpaper /ruta/a/mi-fondo.png
+# Sincronizar con un fondo de pantalla específico mediante Matugen
+inir-sddm-sync --wallpaper /ruta/a/fondo.png
 
-# Probar la pantalla de login en una ventana de prueba
+# Verificar estado de upstream iNiR y actualizar flake
+./scripts/inir-sddm-sync-upstream --update
+
+# Probar la pantalla de inicio en una ventana de prueba
 sddm-greeter --test-mode --theme /var/lib/sddm/themes/ii-pixel
 ```
