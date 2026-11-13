@@ -3,11 +3,11 @@
     "inir": {
       "flake": false,
       "locked": {
-        "lastModified": 1794489899,
-        "narHash": "sha256-YIq9cleuM33dKHgBzpKjibXWvWzUShlo831Ckx3SlyA=",
+        "lastModified": 1794594781,
+        "narHash": "sha256-VryCa7VTiCaCJeQfx2G2kntrwL5/Brm+xgroplRlmpk=",
         "owner": "snowarch",
         "repo": "inir",
-        "rev": "edca6cc95c7881ba152472759ba071f4e2c9867e",
+        "rev": "28365436c2a00d083d29503aacfc0b5b321d67c6",
         "type": "github"
       },
       "original": {
